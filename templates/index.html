@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Voter Roll Algorithm Analysis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:       #0a0c10;
+  --surface:  #111318;
+  --border:   #1e2330;
+  --accent:   #e8c84a;
+  --accent2:  #4a9ee8;
+  --danger:   #e84a4a;
+  --text:     #d0d4de;
+  --muted:    #5a6070;
+  --mono:     'IBM Plex Mono', monospace;
+  --sans:     'IBM Plex Sans', sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+/* ── layout ── */
+header {
+  border-bottom: 1px solid var(--border);
+  padding: 1.5rem 2rem;
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+}
+header h1 {
+  font-family: var(--mono);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--accent);
+  letter-spacing: 0.05em;
+}
+header p {
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-family: var(--mono);
+}
+
+nav {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+  padding: 0 2rem;
+}
+nav button {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  padding: 0.75rem 1.25rem;
+  transition: all 0.15s;
+}
+nav button:hover { color: var(--text); }
+nav button.active {
+  border-bottom-color: var(--accent);
+  color: var(--accent);
+}
+
+main {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  min-height: calc(100vh - 100px);
+}
+
+aside {
+  border-right: 1px solid var(--border);
+  padding: 1.5rem;
+}
+aside h3 {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 1rem;
+}
+
+.control-group { margin-bottom: 1.25rem; }
+.control-group label {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-bottom: 0.35rem;
+  font-family: var(--mono);
+}
+.control-group input[type=range] {
+  width: 100%;
+  accent-color: var(--accent);
+}
+.control-group .val {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  color: var(--accent);
+}
+
+button.run-btn {
+  background: var(--accent);
+  border: none;
+  border-radius: 3px;
+  color: #000;
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  padding: 0.6rem 1.2rem;
+  width: 100%;
+  transition: opacity 0.15s;
+}
+button.run-btn:hover { opacity: 0.85; }
+button.run-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.content { padding: 1.5rem 2rem; overflow-x: auto; }
+
+/* ── panels ── */
+.panel { display: none; }
+.panel.active { display: block; }
+
+/* ── stats row ── */
+.stats-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.75rem 1rem;
+  min-width: 130px;
+}
+.stat-card .label {
+  font-size: 0.68rem;
+  color: var(--muted);
+  font-family: var(--mono);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.stat-card .value {
+  font-family: var(--mono);
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: var(--accent);
+  margin-top: 0.2rem;
+}
+.stat-card.danger .value { color: var(--danger); }
+.stat-card.blue .value   { color: var(--accent2); }
+
+/* ── table ── */
+.tbl-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  margin-bottom: 1.5rem;
+}
+table {
+  border-collapse: collapse;
+  width: 100%;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+}
+th {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  text-transform: uppercase;
+}
+td {
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  padding: 0.4rem 0.75rem;
+}
+tr:last-child td { border-bottom: none; }
+tr.fraud td { background: rgba(232,74,74,0.06); }
+tr.fraud td:first-child { border-left: 2px solid var(--danger); }
+
+/* ── canvas charts ── */
+.chart-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+}
+.chart-wrap h4 {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--muted);
+  letter-spacing: 0.06em;
+  margin-bottom: 0.75rem;
+  text-transform: uppercase;
+}
+canvas { display: block; max-width: 100%; }
+
+/* ── state map table ── */
+.state-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+.state-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.85rem 1rem;
+}
+.state-card.accenture { border-left: 3px solid var(--accent); }
+.state-card.hart      { border-left: 3px solid var(--accent2); }
+.state-card.other     { border-left: 3px solid var(--muted); }
+.state-card .abbrev {
+  font-family: var(--mono);
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+.state-card .name {
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin-bottom: 0.5rem;
+}
+.state-card .algos {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--text);
+  margin-bottom: 0.4rem;
+}
+.state-card .vendor-tag {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 2px;
+  margin-top: 0.25rem;
+}
+.vendor-accenture { background: rgba(232,200,74,0.15); color: var(--accent); }
+.vendor-hart      { background: rgba(74,158,232,0.15); color: var(--accent2); }
+.vendor-other     { background: rgba(90,96,112,0.2);   color: var(--muted); }
+
+.timeline-bar {
+  margin-top: 0.5rem;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  position: relative;
+}
+.timeline-bar .fill {
+  position: absolute;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--accent);
+}
+
+/* ── scatter plot ── */
+#scatter-canvas { cursor: crosshair; }
+
+/* ── loading ── */
+.loading {
+  display: none;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--accent);
+  padding: 2rem 0;
+  letter-spacing: 0.05em;
+}
+.loading::after {
+  content: '...';
+  animation: dots 1s steps(3, end) infinite;
+}
+@keyframes dots {
+  0%,100% { content: '.'; }
+  33%      { content: '..'; }
+  66%      { content: '...'; }
+}
+
+section h2 {
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  color: var(--text);
+  letter-spacing: 0.05em;
+  margin-bottom: 0.4rem;
+  margin-top: 1.5rem;
+}
+section h2:first-child { margin-top: 0; }
+section p.desc {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-bottom: 1rem;
+  max-width: 640px;
+  line-height: 1.7;
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>VOTER ROLL ALGORITHM ANALYSIS</h1>
+  <p>Based on Paquette / NYCA (2023-2025) · Educational reconstruction</p>
+</header>
+
+<nav id="nav">
+  <button class="active" data-tab="spiral">Spiral Algorithm</button>
+  <button data-tab="tagging">Covert Tagging</button>
+  <button data-tab="tartan">Tartan / OOR</button>
+  <button data-tab="states">State Fingerprint</button>
+</nav>
+
+<main>
+<aside id="sidebar">
+  <!-- controls injected per-tab by JS -->
+</aside>
+
+<div class="content">
+  <div class="loading" id="loading">Running analysis</div>
+
+  <!-- ── SPIRAL ── -->
+  <section class="panel active" id="panel-spiral">
+    <h2>The Spiral Algorithm</h2>
+    <p class="desc">
+      Simulates the Caesar cipher + deck stacking mechanism found in NY voter rolls.
+      CID numbers are divided into strips by digit length, each strip is cut and
+      reordered (Caesar cipher), then all strips are interlaced using repunit spacing.
+      Consecutive SBOEID numbers are assigned to the result.
+    </p>
+    <div class="stats-row" id="spiral-stats"></div>
+    <div class="chart-wrap">
+      <h4>SBOEID gaps when sorted by CID — repunit pattern</h4>
+      <canvas id="gap-chart" height="160"></canvas>
+    </div>
+    <h2>Records (first 50, sorted by SBOEID)</h2>
+    <p class="desc">Sorting by SBOEID reveals the strip pattern in the CID column.</p>
+    <div class="tbl-wrap">
+      <table id="spiral-table">
+        <thead><tr>
+          <th>SBOEID</th><th>CID</th><th>Strip</th><th>Deck position</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ── TAGGING ── -->
+  <section class="panel" id="panel-tagging">
+    <h2>Covert Tagging Mechanism</h2>
+    <p class="desc">
+      Fraudulent records are injected alongside legitimate ones. The fraud signal
+      is not in the numbers themselves — it is in which SBOEID is paired with
+      which CID. Records in the anchor strip (strip 0) are the tagged fraudulent
+      records. Without the algorithm key, all records look identical.
+    </p>
+    <div class="stats-row" id="tagging-stats"></div>
+    <h2>Records — with vs. without the algorithm key</h2>
+    <p class="desc">
+      Red rows are fraudulent records visible only to a keyholder.
+      An election official sees identical "Active" status for all.
+    </p>
+    <div class="tbl-wrap">
+      <table id="tagging-table">
+        <thead><tr>
+          <th>SBOEID</th><th>CID</th><th>Strip</th><th>Deck pos</th><th>Tag (keyholder)</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ── TARTAN ── -->
+  <section class="panel" id="panel-tartan">
+    <h2>Tartan — Out of Range (OOR) Partition</h2>
+    <p class="desc">
+      The OOR partition uses a different algorithm nicknamed "Tartan".
+      A scatterplot of SBOEID (Y) vs CID (X) reveals two formations:
+      columns (active records) and slabs (purged at creation). The paper
+      asks: how did the system know these records were ineligible the moment
+      they were assigned numbers?
+    </p>
+    <div class="stats-row" id="tartan-stats"></div>
+    <div class="chart-wrap">
+      <h4>OOR scatterplot — columns (active) vs slabs (purged at creation)</h4>
+      <canvas id="scatter-canvas" height="300"></canvas>
+    </div>
+    <p class="desc" style="margin-top:0.5rem">
+      <span style="color:var(--accent2)">■</span> Column / Active &nbsp;
+      <span style="color:var(--muted)">■</span> Column / Purged &nbsp;
+      <span style="color:var(--danger)">■</span> Slab / Purged &nbsp;
+      <span style="color:#e84a4a88">■</span> Slab / Active (should be absent)
+    </p>
+  </section>
+
+  <!-- ── STATES ── -->
+  <section class="panel" id="panel-states">
+    <h2>Multi-State Fingerprint</h2>
+    <p class="desc">
+      Paquette has published findings across 12+ states. Algorithm introduction
+      dates cluster within 0–2 years of HAVA-mandated statewide database launch.
+      Accenture built the SVRS for OH, PA, NJ, and WI — four states with confirmed
+      algorithms and a shared vendor codebase.
+    </p>
+    <div class="stats-row" id="states-stats"></div>
+    <div class="chart-wrap">
+      <h4>HAVA launch year vs algorithm introduction year by state</h4>
+      <canvas id="timeline-chart" height="200"></canvas>
+    </div>
+    <h2>State cards</h2>
+    <p class="desc">
+      <span style="color:var(--accent)">Gold border</span> = Accenture SVRS &nbsp;
+      <span style="color:var(--accent2)">Blue border</span> = Hart InterCivic &nbsp;
+      <span style="color:var(--muted)">Gray border</span> = Other vendor
+    </p>
+    <div class="state-grid" id="state-grid"></div>
+  </section>
+</div>
+</main>
+
+<script>
+// ── tab nav ──────────────────────────────────────────────────────────────────
+const CONTROLS = {
+  spiral: `
+    <h3>Parameters</h3>
+    <div class="control-group">
+      <label>Simulated voters <span class="val" id="n-val">200</span></label>
+      <input type="range" id="ctrl-n" min="50" max="500" value="200"
+             oninput="document.getElementById('n-val').textContent=this.value">
+    </div>
+    <div class="control-group">
+      <label>Random seed <span class="val" id="seed-val">42</span></label>
+      <input type="range" id="ctrl-seed" min="1" max="99" value="42"
+             oninput="document.getElementById('seed-val').textContent=this.value">
+    </div>
+    <button class="run-btn" onclick="runSpiral()">▶ Run Analysis</button>`,
+  tagging: `
+    <h3>Parameters</h3>
+    <div class="control-group">
+      <label>Legitimate records <span class="val" id="nl-val">300</span></label>
+      <input type="range" id="ctrl-nl" min="50" max="600" value="300"
+             oninput="document.getElementById('nl-val').textContent=this.value">
+    </div>
+    <div class="control-group">
+      <label>Fraudulent injected <span class="val" id="nf-val">40</span></label>
+      <input type="range" id="ctrl-nf" min="5" max="100" value="40"
+             oninput="document.getElementById('nf-val').textContent=this.value">
+    </div>
+    <button class="run-btn" onclick="runTagging()">▶ Run Simulation</button>`,
+  tartan: `
+    <h3>Parameters</h3>
+    <div class="control-group">
+      <label>OOR records <span class="val" id="tn-val">400</span></label>
+      <input type="range" id="ctrl-tn" min="100" max="800" value="400"
+             oninput="document.getElementById('tn-val').textContent=this.value">
+    </div>
+    <div class="control-group">
+      <label>% slab formation <span class="val" id="ts-val">30</span>%</label>
+      <input type="range" id="ctrl-ts" min="10" max="60" value="30"
+             oninput="document.getElementById('ts-val').textContent=this.value">
+    </div>
+    <button class="run-btn" onclick="runTartan()">▶ Run Simulation</button>`,
+  states: `
+    <h3>Filter</h3>
+    <div class="control-group">
+      <label>Vendor</label>
+      <select id="vendor-filter" onchange="renderStates(window._stateData)"
+              style="width:100%;background:var(--surface);color:var(--text);
+                     border:1px solid var(--border);padding:0.4rem;
+                     font-family:var(--mono);font-size:0.75rem;">
+        <option value="">All vendors</option>
+        <option value="Accenture">Accenture</option>
+        <option value="Hart">Hart InterCivic</option>
+      </select>
+    </div>
+    <button class="run-btn" onclick="loadStates()">▶ Reload</button>`,
+};
+
+document.querySelectorAll('nav button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+    btn.classList.add('active');
+    const tab = btn.dataset.tab;
+    document.getElementById('panel-'+tab).classList.add('active');
+    document.getElementById('sidebar').innerHTML = CONTROLS[tab];
+    if (tab==='states') loadStates();
+  });
+});
+document.getElementById('sidebar').innerHTML = CONTROLS.spiral;
+
+// ── helpers ──────────────────────────────────────────────────────────────────
+function fmt(n) { return n==null?'—':Number(n).toLocaleString(); }
+function setLoading(on) {
+  document.getElementById('loading').style.display = on?'block':'none';
+}
+async function api(path, body={}) {
+  setLoading(true);
+  const r = await fetch(path, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(body)
+  });
+  const d = await r.json();
+  setLoading(false);
+  return d;
+}
+
+function statCards(containerId, cards) {
+  document.getElementById(containerId).innerHTML = cards.map(c=>`
+    <div class="stat-card ${c.cls||''}">
+      <div class="label">${c.label}</div>
+      <div class="value">${c.value}</div>
+    </div>`).join('');
+}
+
+// ── bar chart (gaps) ─────────────────────────────────────────────────────────
+function drawBarChart(canvasId, labels, values, color='#e8c84a') {
+  const canvas = document.getElementById(canvasId);
+  const ctx    = canvas.getContext('2d');
+  canvas.width = canvas.parentElement.clientWidth - 32;
+  const W=canvas.width, H=canvas.height, PAD=30, BAR_PAD=8;
+  ctx.clearRect(0,0,W,H);
+  const max   = Math.max(...values,1);
+  const bw    = (W-PAD*2)/labels.length - BAR_PAD;
+  ctx.fillStyle = '#1e2330';
+  ctx.fillRect(0,0,W,H);
+  labels.forEach((lbl,i) => {
+    const x = PAD + i*(bw+BAR_PAD);
+    const h = ((values[i]/max)*(H-PAD*2));
+    const y = H-PAD-h;
+    ctx.fillStyle = color;
+    ctx.globalAlpha = 0.85;
+    ctx.fillRect(x, y, bw, h);
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#5a6070';
+    ctx.font = '10px IBM Plex Mono';
+    ctx.textAlign = 'center';
+    ctx.fillText(String(lbl).replace(/\B(?=(\d{3})+(?!\d))/g,','), x+bw/2, H-6);
+    ctx.fillStyle = '#e8c84a';
+    ctx.fillText(values[i], x+bw/2, y-4);
+  });
+}
+
+// ── scatter plot (Tartan) ────────────────────────────────────────────────────
+function drawScatter(data) {
+  const canvas = document.getElementById('scatter-canvas');
+  const ctx    = canvas.getContext('2d');
+  canvas.width = canvas.parentElement.clientWidth - 32;
+  const W=canvas.width, H=canvas.height, PAD=40;
+  ctx.fillStyle='#111318'; ctx.fillRect(0,0,W,H);
+
+  const sboeids = data.map(r=>r.sboeid);
+  const cids    = data.map(r=>r.cid);
+  const sMin=Math.min(...sboeids), sMax=Math.max(...sboeids);
+  const cMin=Math.min(...cids),    cMax=Math.max(...cids);
+
+  data.forEach(r => {
+    const x = PAD + ((r.cid-cMin)/(cMax-cMin||1))*(W-PAD*2);
+    const y = H-PAD - ((r.sboeid-sMin)/(sMax-sMin||1))*(H-PAD*2);
+    ctx.beginPath();
+    ctx.arc(x,y,2.5,0,Math.PI*2);
+    if (r.formation==='column' && r.status==='Active')  ctx.fillStyle='#4a9ee8';
+    else if (r.formation==='column')                     ctx.fillStyle='#3a4050';
+    else if (r.status==='Purged')                        ctx.fillStyle='#e84a4a';
+    else                                                 ctx.fillStyle='#e84a4a44';
+    ctx.fill();
+  });
+
+  // axes labels
+  ctx.fillStyle='#5a6070'; ctx.font='10px IBM Plex Mono';
+  ctx.fillText('CID →', W-50, H-8);
+  ctx.save(); ctx.translate(12, H/2);
+  ctx.rotate(-Math.PI/2); ctx.fillText('SBOEID →', 0, 0); ctx.restore();
+}
+
+// ── SPIRAL ───────────────────────────────────────────────────────────────────
+async function runSpiral() {
+  const n    = +document.getElementById('ctrl-n').value;
+  const seed = +document.getElementById('ctrl-seed').value;
+  const d    = await api('/api/spiral', {n, seed});
+
+  statCards('spiral-stats', [
+    {label:'Total records',      value: fmt(d.total)},
+    {label:'Strips',             value: d.n_strips},
+    {label:'Scramble',           value: d.scramble_pct+'%', cls:'danger'},
+    {label:'SBOEID start',       value: fmt(d.sboeid_range[0]), cls:'blue'},
+    {label:'SBOEID end',         value: fmt(d.sboeid_range[1]), cls:'blue'},
+  ]);
+
+  const labels = d.gap_counts.map(g=>g.gap);
+  const vals   = d.gap_counts.map(g=>g.count);
+  drawBarChart('gap-chart', labels, vals);
+
+  const tbody = document.querySelector('#spiral-table tbody');
+  tbody.innerHTML = d.records.map(r=>`
+    <tr>
+      <td>${fmt(r.sboeid)}</td>
+      <td>${fmt(r.cid)}</td>
+      <td>${r.strip}</td>
+      <td>${fmt(r.pos)}</td>
+    </tr>`).join('');
+}
+
+// ── TAGGING ──────────────────────────────────────────────────────────────────
+async function runTagging() {
+  const nl   = +document.getElementById('ctrl-nl').value;
+  const nf   = +document.getElementById('ctrl-nf').value;
+  const d    = await api('/api/tagging', {n_legit:nl, n_fraud:nf});
+
+  statCards('tagging-stats', [
+    {label:'Total records',        value: fmt(d.total)},
+    {label:'Legitimate',           value: fmt(d.n_legit), cls:'blue'},
+    {label:'Fraudulent injected',  value: fmt(d.n_fraud), cls:'danger'},
+    {label:'Fraud %',              value: d.fraud_pct+'%', cls:'danger'},
+    {label:'Extracted by algo',    value: fmt(d.extracted)},
+    {label:'True positives',       value: fmt(d.true_pos)},
+    {label:'False positives',      value: fmt(d.false_pos)},
+  ]);
+
+  const tbody = document.querySelector('#tagging-table tbody');
+  tbody.innerHTML = d.sample.map(r=>`
+    <tr class="${r.is_fraud?'fraud':''}">
+      <td>${fmt(r.sboeid)}</td>
+      <td>${fmt(r.cid)}</td>
+      <td>${r.strip}</td>
+      <td>${fmt(r.pos)}</td>
+      <td style="color:${r.is_fraud?'var(--danger)':'var(--muted)'}">
+        ${r.is_fraud?'⚑ FRAUDULENT':'legitimate'}
+      </td>
+    </tr>`).join('');
+}
+
+// ── TARTAN ───────────────────────────────────────────────────────────────────
+async function runTartan() {
+  const n       = +document.getElementById('ctrl-tn').value;
+  const pctSlab = +document.getElementById('ctrl-ts').value / 100;
+  const d       = await api('/api/tartan', {n, pct_slab:pctSlab});
+
+  statCards('tartan-stats', [
+    {label:'Total OOR records',   value: fmt(d.total)},
+    {label:'Slab formations',     value: fmt(d.n_slab), cls:'danger'},
+    {label:'Column formations',   value: fmt(d.n_column), cls:'blue'},
+    {label:'Slab purge rate',     value: d.slab_purge_pct+'%', cls:'danger'},
+    {label:'Column purge rate',   value: d.col_purge_pct+'%'},
+    {label:'Slab clone rate',     value: d.slab_clone_pct+'%', cls:'danger'},
+  ]);
+
+  drawScatter(d.scatter);
+}
+
+// ── STATES ───────────────────────────────────────────────────────────────────
+async function loadStates() {
+  const r = await fetch('/api/states');
+  const d = await r.json();
+  window._stateData = d;
+  setLoading(false);
+  renderStates(d);
+  drawTimeline(d);
+  statCards('states-stats', [
+    {label:'States analyzed',     value: d.length},
+    {label:'Accenture states',    value: d.filter(s=>s.vendor&&s.vendor.includes('Accenture')).length, cls:''},
+    {label:'Total anomalous',     value: fmt(d.reduce((a,s)=>a+(s.anomalous||0),0)), cls:'danger'},
+    {label:'Avg lag HAVA→algo',   value: (d.filter(s=>s.lag!=null).reduce((a,s)=>a+s.lag,0)/d.filter(s=>s.lag!=null).length).toFixed(1)+' yr'},
+  ]);
+}
+
+function renderStates(data) {
+  const filter = (document.getElementById('vendor-filter')||{}).value||'';
+  const filtered = filter ? data.filter(s=>s.vendor&&s.vendor.includes(filter)) : data;
+  document.getElementById('state-grid').innerHTML = filtered.map(s => {
+    const isAcc  = s.vendor&&s.vendor.includes('Accenture');
+    const isHart = s.vendor&&s.vendor.includes('Hart');
+    const cls    = isAcc?'accenture':isHart?'hart':'other';
+    const vCls   = isAcc?'vendor-accenture':isHart?'vendor-hart':'vendor-other';
+    const lag    = s.lag!=null ? `<div class="timeline-bar"><div class="fill" style="width:${Math.min(s.lag/18*100,100)}%"></div></div>` : '';
+    return `<div class="state-card ${cls}">
+      <div class="abbrev">${s.abbrev}</div>
+      <div class="name">${s.state}</div>
+      <div class="algos">${s.algorithms.slice(0,2).join(', ')}</div>
+      ${s.anomalous?`<div style="font-family:var(--mono);font-size:0.7rem;color:var(--danger);margin:0.25rem 0">${fmt(s.anomalous)} anomalous</div>`:''}
+      ${s.clone_pct?`<div style="font-family:var(--mono);font-size:0.7rem;color:var(--danger)">${s.clone_pct}% clone rate</div>`:''}
+      <span class="vendor-tag ${vCls}">${(s.vendor||'Unknown').split('/')[0].split('(')[0].trim()}</span>
+      ${s.algo_intro?`<div style="font-size:0.68rem;color:var(--muted);margin-top:0.4rem;font-family:var(--mono)">HAVA ${s.hava} → algo ${s.algo_intro}</div>`:'<div style="font-size:0.68rem;color:var(--muted);margin-top:0.4rem;font-family:var(--mono)">pending full analysis</div>'}
+      ${lag}
+    </div>`;
+  }).join('');
+}
+
+function drawTimeline(data) {
+  const canvas = document.getElementById('timeline-chart');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  canvas.width = canvas.parentElement.clientWidth - 32;
+  const W=canvas.width, H=canvas.height, PAD=50;
+  ctx.fillStyle='#111318'; ctx.fillRect(0,0,W,H);
+
+  const known = data.filter(s=>s.hava&&s.algo_intro);
+  const allYrs = known.flatMap(s=>[s.hava,s.algo_intro]);
+  const yMin=Math.min(...allYrs)-1, yMax=Math.max(...allYrs)+1;
+  const xStep = (W-PAD*2)/known.length;
+
+  // gridlines
+  [2004,2006,2008,2010,2015,2020,2024].forEach(yr=>{
+    const x = PAD + ((yr-yMin)/(yMax-yMin))*(W-PAD*2); // nope, use as Y
+    ctx.strokeStyle='#1e2330'; ctx.lineWidth=1;
+  });
+
+  known.forEach((s,i) => {
+    const cx = PAD + i*xStep + xStep/2;
+    const yH = H-PAD - ((s.hava-yMin)/(yMax-yMin))*(H-PAD*2);
+    const yA = H-PAD - ((s.algo_intro-yMin)/(yMax-yMin))*(H-PAD*2);
+
+    // connector line
+    ctx.beginPath();
+    ctx.moveTo(cx, yH); ctx.lineTo(cx, yA);
+    ctx.strokeStyle='#2a3040'; ctx.lineWidth=2;
+    ctx.stroke();
+
+    // HAVA dot
+    ctx.beginPath(); ctx.arc(cx,yH,5,0,Math.PI*2);
+    ctx.fillStyle='#4a9ee8'; ctx.fill();
+
+    // algo dot
+    ctx.beginPath(); ctx.arc(cx,yA,5,0,Math.PI*2);
+    ctx.fillStyle='#e8c84a'; ctx.fill();
+
+    // label
+    ctx.fillStyle='#5a6070'; ctx.font='9px IBM Plex Mono';
+    ctx.textAlign='center';
+    ctx.fillText(s.abbrev, cx, H-8);
+  });
+
+  // legend
+  ctx.fillStyle='#4a9ee8'; ctx.beginPath(); ctx.arc(W-120,18,5,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#5a6070'; ctx.font='10px IBM Plex Mono'; ctx.textAlign='left';
+  ctx.fillText('HAVA launch', W-110, 22);
+  ctx.fillStyle='#e8c84a'; ctx.beginPath(); ctx.arc(W-120,38,5,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#5a6070';
+  ctx.fillText('Algo intro', W-110, 42);
+
+  // Y axis years
+  [yMin+1, 2010, 2016, 2020, yMax-1].forEach(yr=>{
+    const y = H-PAD - ((yr-yMin)/(yMax-yMin))*(H-PAD*2);
+    ctx.fillStyle='#2a3040'; ctx.font='9px IBM Plex Mono'; ctx.textAlign='right';
+    ctx.fillText(yr, PAD-5, y+3);
+    ctx.strokeStyle='#1e2330'; ctx.lineWidth=0.5;
+    ctx.beginPath(); ctx.moveTo(PAD,y); ctx.lineTo(W-PAD,y); ctx.stroke();
+  });
+}
+
+// ── auto-run on load ──────────────────────────────────────────────────────────
+runSpiral();
+</script>
+</body>
+</html>
